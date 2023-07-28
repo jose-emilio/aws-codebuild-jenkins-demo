@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Crea un proyecto de AWS CodeBuild con un origen en S3.
+Parameters:
+  Cuenta:
+    Type: String
+    Description: ID de la cuenta de AWS donde se encuentra el repositorio de Amazon ECR
+    MinLength: 12
+    MaxLength: 12
+  Repo:
+    Type: String
+    Description: Nombre del repositorio de Amazon ECR
+  Tag:
+    Type: String
+    Description: Etiqueta del repositorio de Amazon ECR
+    Default: latest
+Resources:
+  BucketArtefactos:
+    Type: AWS::S3::Bucket
+  BucketOrigen:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+  BuildLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+  RolServicioCodeBuild:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Rol de servicio de AWS CodeBuild
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: s3ArtifactPermission
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:*
+                Resource: !GetAtt BucketArtefactos.Arn
+        - PolicyName: logsPermission
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: logs:*
+                Resource: !GetAtt BuildLogs.Arn
+        - PolicyName: AccesoOrigenS3
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:getObject
+                Resource: !Sub
+                  - '${Origen}/*'
+                  - Origen: !GetAtt BucketOrigen.Arn
+        - PolicyName: AccesoArtefactos
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:putObject
+                Resource: !Sub
+                  - '${Destino}/*'
+                  - Destino: !GetAtt BucketArtefactos.Arn
+        - PolicyName: AccesoECR
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:*
+                Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${Cuenta}:repository/${Repo}'
+        - PolicyName: AutenticacionECR
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+  Proyecto:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Description: Proyecto de compilacion
+      Artifacts:
+        ArtifactIdentifier: BuildArtifact
+        Type: S3
+        Location: !Ref BucketArtefactos
+        Name: build-artifact.zip
+        Packaging: ZIP
+      Environment:
+        Type: ARM_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value: !Ref Cuenta
+          - Name: IMAGE_REPO_NAME
+            Type: PLAINTEXT
+            Value: !Ref Repo
+          - Name: IMAGE_TAG
+            Type: PLAINTEXT
+            Value: !Ref Tag
+        Image: aws/codebuild/amazonlinux2-aarch64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref BuildLogs
+          Status: ENABLED
+      ServiceRole: !Ref RolServicioCodeBuild
+      Source:
+        Type: S3
+        Location: !Sub '${BucketOrigen}/artifact.zip'
