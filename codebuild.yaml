@@ -59,7 +59,7 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
-                Action: s3:getObject
+                Action: ['s3:getObject','s3:getObjectVersion']
                 Resource: !Sub
                   - '${Origen}/*'
                   - Origen: !GetAtt BucketOrigen.Arn
@@ -120,3 +120,7 @@ Resources:
       Source:
         Type: S3
         Location: !Sub '${BucketOrigen}/artifact.zip'
+Outputs:
+  ProyectoCompilacion:
+    Description: ID del proyecto de compilacion de AWS CodeBuild
+    Value: !Ref Proyecto
