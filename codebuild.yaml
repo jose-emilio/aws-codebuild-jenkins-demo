@@ -16,8 +16,10 @@ Parameters:
 Resources:
   BucketArtefactos:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
   BucketOrigen:
     Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
     Properties:
       VersioningConfiguration:
         Status: Enabled
