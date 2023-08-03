@@ -1,0 +1,14 @@
+[
+    {
+         "ParameterKey": "Cuenta",
+         "ParameterValue": "<IDCUENTA>"
+     },
+     {
+         "ParameterKey": "Repo",
+         "ParameterValue": "<NOMBREREPO>"
+     },
+     {
+         "ParameterKey": "Tag",
+         "ParameterValue": "<TAGREPO>"
+     }
+ ]
